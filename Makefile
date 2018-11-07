@@ -32,4 +32,5 @@ blockchainMaind: blockchainMaind.o $(OBJECTS2) $(OBJECTS1) $(OBJECTS) $(OBJECTS3
 	-o blockchainMaind
 
 clean:
-	rm *.o blockchainMain blockchainMaind
+	rm -f *.o core *~ blockchainMain blockchainMaind
+
