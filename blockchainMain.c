@@ -15,23 +15,45 @@
 #include <stdbool.h>
 #include "blockchain.h"
 
+// create both a client and publisher now
 int main(int argc, char **argv)
 {
-	int i;
-	const int numHosts = argc - 2;
-	char *hosts[numHosts];
-	int sock = atoi(argv[1]);
-	for (i = 0; i < argc-2; i++)
+	int blockCount = 0;
+	if (argc < 2)
+		errexit("usage: TCPechod [port]\n");
+	
+	char *service = argv[1];
+	
+	int i = 2, j = 0;
+	const int hostCount= argc - 2;
+	char *hosts[hostCount];
+	
+	for (; i < argc, j < hostCount; i++, j++)
 	{
-		hosts[i] = argv[i + 2];
-		printf("host1: %s\n", hosts[i]);
-		fflush(stdout);
+		hosts[j] = argv[i];
 	}
-
-	//Create Block
-	Block block = createBlock();
-
-	if (broadcastBlock(block, argv[1], hosts, numHosts))
-		saveBlock(block);
-	return 0;
+	
+	(void) signal(SIGCHLD, reaper);
+	
+	if (fork() == 0)
+	{
+		//child = server
+		if (server(service) == 1)
+		{
+			errexit("Server Error\n Closing Program\n");
+		}
+	}
+	else {
+		//parent = client
+		while (1)
+		{
+			//system("clear");
+			printf("\n\tPress ENTER to launch UI\n");
+			fflush(stdout);
+			getchar();
+			
+			//int client(const int numHosts, char **hosts, char *sock);
+			client(hostCount, hosts, service);
+		}
+	}
 }
