@@ -18,6 +18,54 @@
 
 #define	LINELEN	128
 #define	BUFSIZE	4096
+#define	QLEN 5
+
+int server(char *service)
+{
+	struct	sockaddr_in fsin;	/* the address of a client	*/
+	int	alen;			/* length of client's address	*/
+	int	msock;			/* master server socket		*/
+	int	ssock;			/* slave server socket		*/
+	
+	Block block;
+
+	msock = passiveTCP(service, QLEN);
+
+	while (1) {
+		alen = sizeof(fsin);
+		ssock = accept(msock, (struct sockaddr *)&fsin, &alen);
+		if (ssock < 0) {
+			if (errno == EINTR)   //system call was interrupted permaturely with a signal before it was able to complete
+				continue;     //should retry the syscall 
+			errexit("accept: %s\n", strerror(errno));
+		}
+		switch (fork()) {
+		case 0:		/* child */
+			(void) close(msock);
+			exit(recieveBlock(&block, ssock) == false);
+		default:	/* parent */
+			(void) close(ssock);
+			break;
+		case -1:
+			errexit("fork: %s\n", strerror(errno));
+		}
+	}
+	
+	return 1;
+}
+
+int client(const int numHosts, char **hosts, char *sock)
+{
+	
+	//Create Block
+	Block block = createBlock();
+	if (broadcastBlock(block, sock, hosts, numHosts))
+	{
+		printf("Attempting to save block: %s\n", block.blockTitle);
+		saveBlock(block);
+	}
+	return 0;
+}
 
 Block createBlock()
 {
@@ -37,17 +85,18 @@ void saveBlock(Block block)
 {
 	FILE *file;
 	file = fopen(block.blockTitle, "w");
-	printf("Attempting to save block: %s\n", block.blockTitle);
+	//printf("Attempting to save block: %s\n", block.blockTitle);
 	if (file == NULL) 
     { 
         fprintf(stderr, "\nError opening file\n"); 
         exit (1); 
     }
 	fwrite (&block, sizeof(Block), 1, file); 
-	if(fwrite != 0)  
-        printf("Contents of struct written to file successfully.\n"); 
-    else 
+	if(fwrite == 0)  
+	{
         printf("Error writing file\n"); 
+		exit (1);
+	}
 	fclose(file);
 }
 
@@ -107,7 +156,7 @@ bool recieveBlock(Block *block, int fd)
 	if (cc < 0)
 		errexit("echo read: %s\n", strerror(errno));
 
-	printf("Block recieved, verifying block...\n");
+	//printf("Block recieved, verifying block...\n");
 	fflush(stdout);
 	if (validateBlock(*block))
 	{
